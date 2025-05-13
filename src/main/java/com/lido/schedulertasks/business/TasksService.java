@@ -2,9 +2,11 @@ package com.lido.schedulertasks.business;
 
 
 import com.lido.schedulertasks.business.dto.TasksDTO;
+import com.lido.schedulertasks.business.mappers.TaskUpdateConverter;
 import com.lido.schedulertasks.business.mappers.TasksConverter;
 import com.lido.schedulertasks.infrastructure.entity.Tasks;
 import com.lido.schedulertasks.infrastructure.enums.StatusNotification;
+import com.lido.schedulertasks.infrastructure.exceptions.ResourceNotFoundException;
 import com.lido.schedulertasks.infrastructure.repository.TasksRepository;
 import com.lido.schedulertasks.infrastructure.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +21,7 @@ public class TasksService {
 
     private final TasksRepository tasksRepository;
     private final TasksConverter tasksConverter;
+    private final TaskUpdateConverter taskUpdateConverter;
     private final JwtUtil jwtUtil;
 
 
@@ -47,5 +50,44 @@ public class TasksService {
 
         return  tasksConverter.toListTasksDTO(
                 tasksRepository.findByUserEmail(email));
+    }
+
+    public void deleteTasksById(String id){
+
+        try {
+            tasksRepository.deleteById(id);
+        } catch (ResourceNotFoundException e) {
+            throw new ResourceNotFoundException("Error deleting task by id, does not exist : ", e.getCause());
+        }
+    }
+
+    public TasksDTO updateStatus(StatusNotification statusNotification, String id){
+        try {
+            Tasks tasks = tasksRepository.findById(id).orElseThrow(
+                    ()->  new  ResourceNotFoundException("Task not found : "+id)
+            );
+
+            tasks.setStatusNotification(statusNotification);
+
+            return tasksConverter.toTasksDTO(
+                    tasksRepository.save(tasks));
+        } catch (ResourceNotFoundException e) {
+            throw new ResourceNotFoundException("Error updating status task ", e.getCause());
+        }
+    }
+
+    public TasksDTO updateTasks(TasksDTO tasksDTO, String id){
+        try {
+
+            Tasks tasks = tasksRepository.findById(id).orElseThrow(
+                    () -> new ResourceNotFoundException("Task not found : " + id)
+            );
+            taskUpdateConverter.updateTasks(tasksDTO, tasks);
+            return tasksConverter.toTasksDTO(
+                    tasksRepository.save(tasks));
+        } catch (ResourceNotFoundException e) {
+            throw new ResourceNotFoundException("Error updating task ", e.getCause());
+        }
+
     }
 }
